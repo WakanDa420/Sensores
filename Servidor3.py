@@ -2,7 +2,7 @@
 """
 Created on Sun Mar 17 20:03:20 2024
 
-autor: Ivan Camilo Leiton Murcia
+@author: Ivan Camilo Leiton Murcia
 """
 from sqlalchemy import create_engine
 import socket
@@ -14,7 +14,7 @@ import pandas as pd
 import numpy as np
 
 PORT = 8889
-IP = "127.0.0.1"  # Cambiar a 127.0.0.1 para escuchar en la interfaz de loopback local
+IP = "192.168.124.16"
 
 def handler(client_soc):
     client_soc.send(b"a")
@@ -24,10 +24,10 @@ def handler(client_soc):
 
     try:
         data = client_soc.recv(65536).decode()
-        print(f"Datos recibidos: {data}\n")
+        print(data, "\n")
         if len(data) > 4:
             j = json.loads(data)
-            print("Datos JSON recibidos:", j)
+            print("datos recibidos")
             # Agregar fecha y hora actual al JSON
             j["time"] = pd.to_datetime('now')
 
@@ -47,12 +47,10 @@ def handler(client_soc):
             
             # Convertir la columna 'time' a tipo datetime
             df2['time'] = pd.to_datetime(df2['time'])
-            # Modificar la condición para que se generen datos cada minuto
-            condicion = df2['time'].apply(lambda x: x.second <= 10)
+            condicion = df2['time'].apply(lambda x: x.minute % 5 == 0 and 0 <= x.second <= 10)
 
-            # Filtrar el DataFrame usando la condición
+            # Filtrar el DataFrame usando la condici�n
             df2_filtrado = df2[condicion]
-            print(f"Datos filtrados: {df2_filtrado}")
 
             # Guardar DataFrame en un archivo Excel
             df.to_excel("data_test_15.xlsx", sheet_name='sheet1', index=False)
@@ -83,23 +81,18 @@ def handler(client_soc):
 
             # Enviar datos a la base de datos
             send_to_db(df2)
-            print("Datos enviados a la base de datos")
 
     except Exception as e:
-        print(f"Error en el handler: {e}")
+        print(e)
     
     client_soc.close()
 
 def send_to_db(df):
-    try:
-        # Conexión a la base de datos PostgreSQL
-        engine = create_engine('postgresql+psycopg2://postgres:12345@localhost:5432/backup')
-        
-        # Insertar datos en la tabla 'sensors3'
-        df.to_sql('sensors3', engine, if_exists='append', index=False)
-        print("Datos insertados en la base de datos")
-    except Exception as e:
-        print(f"Error al enviar datos a la base de datos: {e}")
+    # Conexi�n a la base de datos PostgreSQL
+    engine = create_engine('postgresql+psycopg2://alex:123@localhost:5432/granja')
+    
+    # Insertar datos en la tabla 'sensors3'
+    df.to_sql('sensors3', engine, if_exists='append', index=False)
 
 def main():
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -109,10 +102,8 @@ def main():
     with s:
         s.bind((IP, PORT))
         s.listen(True)
-        print(f"Servidor escuchando en {IP}:{PORT}")
         while True:
             client_soc, client_address = s.accept()
-            print(f"Conexión aceptada de {client_address}")
             client_soc.settimeout(25)
             threading.Thread(target=handler, args=(client_soc,), daemon=True).start()
 
