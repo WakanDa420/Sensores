@@ -623,7 +623,8 @@ def main():
                 with tab1:
                     st.markdown(f'<h3 style="color: #FFFFFF; margin: 15px 0;">Tendencias de las últimas {hours} horas</h3>', unsafe_allow_html=True)
                     
-                    # Crear gráficos de línea para cada tipo de sensor con estilo mejorado
+                    # Crear gráficos de línea para cada tipo de sensor y cada dispositivo
+                    # Aquí es donde hacemos el cambio principal para separar los gráficos por dispositivo
                     for sensor_type, title, unit in [
                         ('t', 'Temperatura', '°C'),
                         ('h', 'Humedad', '%'),
@@ -631,25 +632,42 @@ def main():
                         ('nh3', 'Amoniaco', 'ppm'),
                         ('hs', 'Sulfuro de Hidrógeno', 'ppm')
                     ]:
-                        fig = px.line(
-                            df, x='time', y=sensor_type, color='device',
-                            title=f"{title} ({unit})",
-                            labels={'time': 'Tiempo', sensor_type: f'{title} ({unit})'},
-                            height=350,
-                            color_discrete_sequence=CHART_COLORS
-                        )
+                        st.markdown(f'<h4 style="color: #FFFFFF; margin: 15px 0;">{title} ({unit})</h4>', unsafe_allow_html=True)
                         
-                        # Aplicar tema oscuro al gráfico
-                        fig = configure_plotly_theme(fig)
+                        # Crear una fila de columnas para cada dispositivo
+                        device_cols = st.columns(len(selected_devices))
                         
-                        # Añadir líneas de referencia si es necesario
-                        if sensor_type == 't':
-                            fig.add_shape(type="line", x0=df['time'].min(), x1=df['time'].max(), y0=30, y1=30,
-                                        line=dict(color="#F44336", width=2, dash="dash"))
-                            fig.add_shape(type="line", x0=df['time'].min(), x1=df['time'].max(), y0=20, y1=20,
-                                        line=dict(color="#FFC107", width=2, dash="dash"))
-                        
-                        st.plotly_chart(fig, use_container_width=True)
+                        for i, device in enumerate(selected_devices):
+                            if device in df['device'].values:
+                                with device_cols[i]:
+                                    # Filtrar datos solo para este dispositivo
+                                    device_df = df[df['device'] == device]
+                                    
+                                    # Crear gráfico solo para este dispositivo
+                                    fig = px.line(
+                                        device_df, 
+                                        x='time', 
+                                        y=sensor_type,
+                                        title=f"{device}",
+                                        labels={'time': 'Tiempo', sensor_type: f'{title} ({unit})'},
+                                        height=300,
+                                        color_discrete_sequence=[CHART_COLORS[i % len(CHART_COLORS)]]
+                                    )
+                                    
+                                    # Aplicar tema oscuro al gráfico
+                                    fig = configure_plotly_theme(fig)
+                                    
+                                    # Añadir líneas de referencia si es necesario
+                                    if sensor_type == 't':
+                                        fig.add_shape(type="line", x0=device_df['time'].min(), x1=device_df['time'].max(), y0=30, y1=30,
+                                                    line=dict(color="#F44336", width=2, dash="dash"))
+                                        fig.add_shape(type="line", x0=device_df['time'].min(), x1=device_df['time'].max(), y0=20, y1=20,
+                                                    line=dict(color="#FFC107", width=2, dash="dash"))
+                                    
+                                    # Ocultar leyenda ya que solo hay una línea
+                                    fig.update_layout(showlegend=False)
+                                    
+                                    st.plotly_chart(fig, use_container_width=True)
                 
                 with tab2:
                     st.markdown('<h3 style="color: #FFFFFF; margin: 15px 0;">Comparación entre sensores</h3>', unsafe_allow_html=True)
@@ -670,6 +688,8 @@ def main():
                     # Crear gráfico de comparación de barras con estilo mejorado
                     latest_compare = latest_data[latest_data['device'].isin(selected_devices)]
                     if not latest_compare.empty:
+                        # Crear layout de dos columnas para los gráficos
+                 
                         # Crear layout de dos columnas para los gráficos
                         col1, col2 = st.columns(2)
                         
@@ -842,4 +862,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
