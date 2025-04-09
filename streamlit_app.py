@@ -5,6 +5,7 @@ from plotly.subplots import make_subplots
 from sqlalchemy import create_engine
 import time
 from min_tabla import create_table_with_sparklines
+import os  # Importar el módulo os
 
 # Configuración de la página (DEBE SER LA PRIMERA INSTRUCCIÓN)
 st.set_page_config(
@@ -60,7 +61,15 @@ SENSOR_RANGES = {
 @st.cache_resource
 def get_connection():
     try:
-        conn = create_engine('postgresql+psycopg2://postgres:12345@localhost:5432/backup')
+        # Leer las credenciales desde las variables de entorno
+        db_user = os.getenv("DB_USER")
+        db_password = os.getenv("DB_PASSWORD")
+        db_host = os.getenv("DB_HOST")
+        db_port = os.getenv("DB_PORT")
+        db_name = os.getenv("DB_NAME")
+
+        # Crear la conexión usando las variables de entorno
+        conn = create_engine(f'postgresql+psycopg2://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}')
         return conn
     except Exception as e:
         st.error(f"Error de conexión: {e}")
