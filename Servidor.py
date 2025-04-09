@@ -84,7 +84,7 @@ def handler(client_soc):
     client_soc.close()
 
 def send_to_db(df):
-    # Conexión a la base de datos PostgreSQL
+    # ConexiÃ³n a la base de datos PostgreSQL
     engine = create_engine('postgresql+psycopg2://alex:123@localhost:5432/granja')
     
     # Insertar datos en la tabla 'nombre_tabla'
