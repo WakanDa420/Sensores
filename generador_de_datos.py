@@ -1,56 +1,53 @@
-# Ejecuta este script para generar datos de prueba directamente en PostgreSQL
 import pandas as pd
-import numpy as np
-import random
-import time
 from sqlalchemy import create_engine, text
+import time
 import datetime
+import os
 
-# Configuración de conexión
+# Configuración de conexión a la base de datos existente
 engine = create_engine('postgresql+psycopg2://postgres:12345@localhost:5432/backup')
+# Set para almacenar los IDs que ya hemos mostrado
+shown_ids = set()
 
-# Crea la tabla si no existe (asegúrate de que se llame sensores3)
-with engine.connect() as conn:
-    conn.execute(text("""
-    CREATE TABLE IF NOT EXISTS sensores3 (
-        id SERIAL PRIMARY KEY,
-        device VARCHAR(50),
-        ip VARCHAR(50),
-        lux FLOAT,
-        nh3 FLOAT,
-        hs FLOAT,
-        h FLOAT,
-        t FLOAT,
-        time TIMESTAMP
-    )
-    """))
-    conn.commit()
-
-# Bucle para generar datos continuamente
-print("Generando datos para la tabla sensores3...")
+print("Monitoreando datos de la tabla sensors3...")
 try:
     while True:
-        # Genera datos para tres dispositivos
-        for device in ["ESP32-Sensor1", "ESP32-Sensor2", "ESP32-Sensor3"]:
-            data = {
-                "device": device,
-                "ip": "192.168.1.100",
-                "lux": round(random.uniform(100.0, 500.0), 2),
-                "nh3": round(random.uniform(5.0, 20.0), 2),
-                "hs": round(random.uniform(30.0, 350.0), 2),
-                "h": round(random.uniform(50.0, 90.0), 2),
-                "t": round(random.uniform(18.0, 35.0), 2),
-                "time": datetime.datetime.now()
-            }
-            df = pd.DataFrame([data])
-            
-            # Inserta en la base de datos
-            df.to_sql('sensores3', engine, if_exists='append', index=False)
-            print(f"Datos insertados para {device}: {data}")
+        # Consulta para obtener los últimos 10 registros
+        query = """
+        SELECT * FROM sensors3
+        ORDER BY id DESC 
+        LIMIT 10;
+        """
         
-        # Espera antes de la siguiente inserción
-        wait_time = random.randint(5, 15)
-        print(f"Esperando {wait_time} segundos...")
-        time.sleep(wait_time)
+        # Ejecuta la consulta
+        with engine.connect() as conn:
+            result = conn.execute(text(query))
+            rows = result.fetchall()
+            
+        # Verifica si hay nuevos datos que no hemos mostrado antes
+        new_data = False
+        for row in rows:
+            if row.id not in shown_ids:
+                new_data = True
+                data = {
+                    "id": row.id,
+                    "device": row.device,
+                    "ip": row.ip,
+                    "lux": row.lux,
+                    "nh3": row.nh3,
+                    "hs": row.hs,
+                    "h": row.h,
+                    "t": row.t,
+                    "time": row.time
+                }
+                print(f"Nuevo dato recibido para {row.device}: {data}")
+                shown_ids.add(row.id)
+        
+        # Si no hay nuevos datos, muestra un mensaje de espera
+        if not new_data:
+            print("Esperando nuevos datos...", end="\r")
+        
+        # Espera antes de la siguiente consulta
+        time.sleep(2)  # Consulta cada 2 segundos
 except KeyboardInterrupt:
-    print("\nGeneración de datos detenida por el usuario")
+    print("\nMonitoreo detenido por el usuario")
